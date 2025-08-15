@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "aess drone",
+			"path": "."
+		},
+		{
+			"name": "firmware",
+			"path": "../../../../../Desktop/AESS-DRONE/firmware"
+		}
+	],
+	"settings": {}
+}
