@@ -1,18 +1,33 @@
 #include <Arduino.h>
+#include "receiver.h"
+#include "imu.h"
+#include "motors.h"
+#include "pid.h"
 
-// put function declarations here:
-int myFunction(int, int);
+PID pidRoll(1.0, 0.0, 0.0);   // example
+PID pidPitch(1.0, 0.0, 0.0);
+PID pidYaw(1.0, 0.0, 0.0);
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+    Serial.begin(115200);
+    initReceiver();  // initialize ESP-NOW receiver
+    initIMU();
+    initMotors();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+    IMUData imu = readIMU();
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    float rollOutput  = pidRoll.compute(incomingData.roll, imu.roll);
+    float pitchOutput = pidPitch.compute(incomingData.pitch, imu.pitch);
+    float yawOutput   = pidYaw.compute(incomingData.yaw, imu.yaw);
+
+    setMotorSpeeds(
+        incomingData.throttle + rollOutput - pitchOutput + yawOutput,
+        incomingData.throttle - rollOutput - pitchOutput - yawOutput,
+        incomingData.throttle - rollOutput + pitchOutput + yawOutput,
+        incomingData.throttle + rollOutput + pitchOutput - yawOutput
+    );
+
+    delay(20);
 }
