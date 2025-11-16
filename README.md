@@ -1,6 +1,4 @@
-# AESS-DRONE
-...existing code...
-
+# AESS-DRON
 AESS-DRONE is a small quadcopter firmware project for an ESP32-S3 development board using an MPU6050 IMU and ESP‑NOW receiver. The repo contains the flight firmware, peripherals (IMU, motors, receiver), a native simulation target for local testing, and example transmitter code.
 
 ## Features
