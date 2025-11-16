@@ -1,4 +1,3 @@
-// src/motors.cpp
 #include "motors.h"
 
 void initMotors() {

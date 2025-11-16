@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "receiver.h"
 #include "imu.h"
 #include "motors.h"
