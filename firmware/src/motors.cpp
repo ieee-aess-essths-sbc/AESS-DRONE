@@ -11,16 +11,20 @@ void initMotors() {
     ledcAttachPin(MOTOR2, 1);
     ledcAttachPin(MOTOR3, 2);
     ledcAttachPin(MOTOR4, 3);
+    setMotorSpeeds(1000, 1000, 1000, 1000);
 }
 
-void setMotorSpeeds(float m1, float m2, float m3, float m4) {
-    m1 = constrain(m1, 0, 255);
-    m2 = constrain(m2, 0, 255);
-    m3 = constrain(m3, 0, 255);
-    m4 = constrain(m4, 0, 255);
-
-    ledcWrite(0, m1);
-    ledcWrite(1, m2);
-    ledcWrite(2, m3);
-    ledcWrite(3, m4);
+void setMotorSpeeds(int m1, int m2, int m3, int m4) {
+    m1 = constrain(m1, 1000, 2000);
+    m2 = constrain(m2, 1000, 2000);
+    m3 = constrain(m3, 1000, 2000);
+    m4 = constrain(m4, 1000, 2000);
+    uint16_t duty1 = map(m1, 1000, 2000, 3276, 6553);
+    uint16_t duty2 = map(m2, 1000, 2000, 3276, 6553);
+    uint16_t duty3 = map(m3, 1000, 2000, 3276, 6553);
+    uint16_t duty4 = map(m4, 1000, 2000, 3276, 6553);
+    ledcWrite(0, duty1);
+    ledcWrite(1, duty2);
+    ledcWrite(2, duty3);
+    ledcWrite(3, duty4);
 }

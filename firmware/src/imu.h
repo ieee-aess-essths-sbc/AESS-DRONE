@@ -1,6 +1,5 @@
 #ifndef IMU_H
 #define IMU_H
-#include <Adafruit_MPU6050.h>
 extern unsigned long lastTime;
 
 struct IMUData {

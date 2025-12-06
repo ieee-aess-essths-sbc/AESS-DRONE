@@ -1,5 +1,5 @@
 #include "receiver.h"
-
+#include <Arduino.h>
 struct_message receivedData;
 
 void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
@@ -12,9 +12,6 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 void receiverInit() {
     Serial.begin(115200);
-
-    initMotors(); // initialize PWM pins
-
     WiFi.mode(WIFI_STA);
 
     if (esp_now_init() != ESP_OK) {

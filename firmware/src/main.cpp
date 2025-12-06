@@ -3,52 +3,114 @@
 #include "motors.h"
 #include "pid.h"
 
-// Initialize PIDs with reasonable values and output limits
-// These will need tuning for our drone
+// Declare external variables
+extern unsigned long lastTime;
+extern struct_message receivedData;
+
+// Initialize PIDs
 PID pidRoll(1.0, 0.05, 0.1, -100, 100);
 PID pidPitch(1.0, 0.05, 0.1, -100, 100);
-PID pidYaw(1.0, 0.01, 0.05, -100, 100); // KP, KI, KD, MinOutput, MaxOutput
-//timing variables
-const int LOOP_TIME = 4000; //4ms = 250Hz loop rate
+PID pidYaw(1.0, 0.01, 0.05, -100, 100);
+
+// Timing and safety
+unsigned long loopLastTime = 0;
+const unsigned long LOOP_TIME_US = 4000; // 4ms = 250Hz
+bool armed = false;
+
+// ADD THIS FUNCTION DECLARATION
+void handleSerialCommands();
 
 void setup() {
     Serial.begin(115200);
-    receiverInit();  // initialize ESP-NOW receiver
+    Serial.println("Starting Drone Initialization...");
+    
+    receiverInit();
     initIMU();
     initMotors();
-    setMotorSpeeds(0, 0, 0, 0); // Start with motors off
-    Serial.println("Drone initialization");
-    delay(1000);
+    
+    // Start with motors at minimum (stopped)
+    setMotorSpeeds(1000, 1000, 1000, 1000);
+    
+    Serial.println("Drone Ready. Send 'A' to arm, 'D' to disarm.");
+    loopLastTime = micros();
+    lastTime = micros();  // Initialize IMU timer too
 }
 
 void loop() {
     unsigned long currentTime = micros();
-    float dt = (currentTime - lastTime) / 1000000.0; // Convert to seconds
-    lastTime = currentTime;
-    IMUData imu = readIMU();
-
-    // Convert received data from 0-255 to appropriate ranges
-    // Assuming center at 127, convert to angle range (e.g., -30 to 30 degrees)
-    float targetRoll = map(receivedData.roll, 0, 255, -30.0, 30.0);
-    float targetPitch = map(receivedData.pitch, 0, 255, -30.0, 30.0);
-    float targetYaw = map(receivedData.yaw, 0, 255, -180.0, 180.0);
-    // Compute PID outputs
-    float rollOutput = pidRoll.compute(targetRoll, imu.roll, dt);
-    float pitchOutput = pidPitch.compute(targetPitch, imu.pitch, dt);
-    float yawOutput = pidYaw.compute(targetYaw, imu.yaw, dt);
-    //Get base throttle
-    int baseThrottle = receivedData.throttle;
-    // Standard quadcopter X-configuration mixing
-    // Front-left (M1): throttle + roll - pitch + yaw
-    // Front-right (M2): throttle - roll - pitch - yaw
-    // Rear-right (M3): throttle - roll + pitch + yaw
-    // Rear-left (M4): throttle + roll + pitch - yaw
-    int m1 = baseThrottle + rollOutput - pitchOutput + yawOutput;
-    int m2 = baseThrottle - rollOutput - pitchOutput - yawOutput;
-    int m3 = baseThrottle - rollOutput + pitchOutput + yawOutput;
-    int m4 = baseThrottle + rollOutput + pitchOutput - yawOutput;
     
-    // Set motor speeds
-    setMotorSpeeds(m1, m2, m3, m4);
+    // Run at fixed frequency (250Hz)
+    if (currentTime - loopLastTime >= LOOP_TIME_US) {
+        float dt = (currentTime - loopLastTime) / 1000000.0;
+        loopLastTime = currentTime;
+        
+        // Read IMU
+        IMUData imu = readIMU();
+        
+        // DEBUG: Print angles
+        static unsigned long lastPrint = 0;
+        if (millis() - lastPrint > 100) {
+            Serial.printf("Roll: %.1f | Pitch: %.1f | Yaw: %.1f\n", 
+                         imu.roll, imu.pitch, imu.yaw);
+            lastPrint = millis();
+        }
+        
+        // Convert receiver data
+        float targetRoll = map(receivedData.roll, 0, 255, -30.0, 30.0);
+        float targetPitch = map(receivedData.pitch, 0, 255, -30.0, 30.0);
+        float targetYaw = map(receivedData.yaw, 0, 255, -180.0, 180.0);
+        int throttle = map(receivedData.throttle, 0, 255, 1000, 2000);
+        
+        // Compute PID outputs
+        float rollOutput = pidRoll.compute(targetRoll, imu.roll, dt);
+        float pitchOutput = pidPitch.compute(targetPitch, imu.pitch, dt);
+        float yawOutput = pidYaw.compute(targetYaw, imu.yaw, dt);
+        
+        // Motor mixing (X-configuration)
+        // Motor order: M1(1)=FL, M2(5)=FR, M3(2)=BL, M4(13)=BR
+        int m1 = throttle - rollOutput + pitchOutput + yawOutput;  // FL
+        int m2 = throttle + rollOutput + pitchOutput - yawOutput;  // FR
+        int m3 = throttle - rollOutput - pitchOutput - yawOutput;  // BL
+        int m4 = throttle + rollOutput - pitchOutput + yawOutput;  // BR
+        
+        // Apply only if armed
+        if (armed && throttle > 1100) {
+            setMotorSpeeds(m1, m2, m3, m4);
+        } else {
+            // Motors stopped
+            setMotorSpeeds(1000, 1000, 1000, 1000);
+        }
+    }
+    
+    // Handle serial commands
+    handleSerialCommands();
+}
 
+// ADD THIS FUNCTION DEFINITION
+void handleSerialCommands() {
+    if (Serial.available()) {
+        char cmd = Serial.read();
+        
+        switch(cmd) {
+            case 'A':
+            case 'a':
+                armed = true;
+                Serial.println("ARMED!");
+                break;
+                
+            case 'D':
+            case 'd':
+                armed = false;
+                setMotorSpeeds(1000, 1000, 1000, 1000);
+                Serial.println("DISARMED");
+                break;
+                
+            case 'S':
+            case 's':
+                armed = false;
+                setMotorSpeeds(1000, 1000, 1000, 1000);
+                Serial.println("EMERGENCY STOP!");
+                break;
+        }
+    }
 }
